@@ -25,6 +25,8 @@ JD file ──> Phase 1 ──>  proceed or  ──> Phase 2 ──> Tailored re
 - PyMuPDF — PDF text extraction for knowledge base
 - XeLaTeX — PDF compilation for generated resumes
 - Rich — terminal UI
+- FastAPI + Uvicorn — REST API backend
+- React + TypeScript + Tailwind CSS — web GUI
 
 ## Setup
 
@@ -40,6 +42,10 @@ source .venv/bin/activate
 .venv\Scripts\activate
 
 pip install -r requirements.txt
+pip install fastapi uvicorn python-multipart
+
+# Build the web frontend
+cd frontend && npm install && npm run build && cd ..
 ```
 
 Copy `.env.example` to `.env` and fill in your API key:
@@ -62,9 +68,38 @@ Place your personal files in `knowledge_base/`:
 
 `experience.md` follows a structured format with sections for each role: company, title, dates, and bullet points covering projects, impact, and technologies used. The more detail you provide, the better the tailored output.
 
+## One-Click Launch
+
+After setup is complete, just double-click a launcher file — no terminal needed:
+
+| Platform | File | Notes |
+|----------|------|-------|
+| Windows | `launcher.pyw` | Runs silently (no console window) |
+| Windows | `start.bat` | Shows a console window (useful for debugging) |
+| macOS/Linux | `launcher.sh` | Make executable first: `chmod +x launcher.sh` |
+
+The launcher starts the server, waits for it to be ready, and opens your browser to `http://localhost:8000`.
+
+To create a desktop shortcut:
+- **Windows:** Right-click `launcher.pyw` → Send to → Desktop (create shortcut)
+- **macOS/Linux:** `ln -s /path/to/autoCV/launcher.sh ~/Desktop/autoCV`
+
+To stop: close the browser tab and terminate the process (Task Manager, or Ctrl+C if using `start.bat`).
+
 ## Usage
 
-### Analyze a job description (Phase 1 + optional Phase 2)
+### Web GUI
+
+```bash
+python -m backend.server
+# Open http://localhost:8000
+```
+
+Or use the one-click launchers described above.
+
+### CLI
+
+#### Analyze a job description (Phase 1 + optional Phase 2)
 
 ```bash
 python -m src.main analyze --jd-file jds/company.txt --company "Company"
@@ -72,13 +107,24 @@ python -m src.main analyze --jd-file jds/company.txt --company "Company"
 
 This runs the analysis, displays results in the terminal, and prompts you to proceed to Phase 2. You can also enter the JD interactively by omitting `--jd-file`.
 
-### Generate materials from an existing analysis (Phase 2 only)
+#### Generate materials from an existing analysis (Phase 2 only)
 
 ```bash
 python -m src.main generate --job company_20260315 --questions "Why do you want to work here?"
 ```
 
 > **Windows note:** Save JD files as UTF-8 to avoid encoding issues.
+
+### Development (frontend hot-reload)
+
+```bash
+# Terminal 1 — backend
+python -m backend.server
+
+# Terminal 2 — frontend dev server with hot-reload
+cd frontend && npm run dev
+# Open http://localhost:5173 (proxies API calls to :8000)
+```
 
 ## Output structure
 
@@ -98,7 +144,6 @@ jobs/
 
 ## Roadmap
 
-- GUI frontend
 - n8n workflow integration for automated JD ingestion
 - Batch processing for multiple job applications
 

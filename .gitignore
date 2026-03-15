@@ -34,5 +34,11 @@ knowledge_base/*.pdf
 knowledge_base/*.tex
 knowledge_base/*.md
 
+# Frontend build output
+static/
+
+# Frontend dependencies
+frontend/node_modules/
+
 # Jobs output (contains personal JD analysis)
 jobs/
