@@ -1,0 +1,38 @@
+# Environment
+.env
+.claude
+job-tool-project-plan.md
+
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+.venv/
+venv/
+
+# IDE
+.vscode/
+.idea/
+
+# LaTeX build artifacts
+*.aux
+*.log
+*.out
+*.synctex.gz
+*.fls
+*.fdb_latexmk
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Knowledge base (personal data)
+knowledge_base/*.pdf
+knowledge_base/*.tex
+knowledge_base/*.md
+
+# Jobs output (contains personal JD analysis)
+jobs/

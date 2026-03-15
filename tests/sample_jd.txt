@@ -1,0 +1,22 @@
+Software Engineer Intern - Summer 2026
+TechCorp London
+
+We're looking for a motivated CS student to join our engineering team for a 10-week summer internship.
+
+Requirements:
+- Currently pursuing a degree in Computer Science or related field
+- Proficiency in Python and/or JavaScript
+- Experience with web development (React, Node.js, or similar)
+- Familiarity with Git and collaborative development
+- Strong problem-solving skills
+
+Nice to have:
+- Experience with cloud platforms (AWS, GCP, or Azure)
+- Knowledge of databases (SQL or NoSQL)
+- Interest in AI/ML
+- Previous hackathon or personal project experience
+
+What you'll do:
+- Build and ship features for our customer-facing web platform
+- Participate in code reviews, standups, and sprint planning
+- Work closely with senior engineers on system design
