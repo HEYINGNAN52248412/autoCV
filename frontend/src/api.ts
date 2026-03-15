@@ -22,16 +22,30 @@ export interface Analysis {
   resume_focus_hints: string[];
 }
 
+export interface Usage {
+  input_tokens: number;
+  output_tokens: number;
+}
+
 export interface AnalyzeResponse {
   job_dir: string;
   analysis: Analysis;
+  usage: Usage;
 }
 
 export interface GenerateResponse {
+  status: "complete" | "cancelled";
+  completed: string[];
   resume_tex: string;
   resume_pdf: string | null;
   cover_letter: string | null;
   qa_answers: string | null;
+  usage: {
+    resume?: Usage;
+    cover_letter?: Usage;
+    qa?: Usage;
+    total: Usage;
+  };
 }
 
 export interface JobEntry {
@@ -43,6 +57,34 @@ export interface JobEntry {
   has_resume_pdf: boolean;
   has_cover_letter: boolean;
   has_qa: boolean;
+}
+
+export interface QaAnswer {
+  question: string;
+  answer: string;
+}
+
+export interface QaResponse {
+  answers: QaAnswer[];
+  usage: Usage;
+}
+
+export interface GenerateStatus {
+  phase: string;
+  completed: string[];
+}
+
+export interface UsageSummary {
+  total_input_tokens: number;
+  total_output_tokens: number;
+  total_calls: number;
+  history: {
+    timestamp: string;
+    job: string;
+    phase: string;
+    input_tokens: number;
+    output_tokens: number;
+  }[];
 }
 
 async function request<T>(url: string, options?: RequestInit): Promise<T> {
@@ -74,11 +116,34 @@ export function generateMaterials(jobDir: string, questions = "") {
   });
 }
 
+export function cancelGeneration() {
+  return request<{ status: string }>("/api/generate/cancel", { method: "POST" });
+}
+
+export function getGenerateStatus() {
+  return request<GenerateStatus>("/api/generate/status");
+}
+
+export function askQuestions(jobDir: string, questions: string[]) {
+  return request<QaResponse>("/api/qa", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ job_dir: jobDir, questions }),
+  });
+}
+
+export function getUsage() {
+  return request<UsageSummary>("/api/usage");
+}
+
 export function listJobs() {
   return request<JobEntry[]>("/api/jobs");
 }
 
-export async function getJobFile(jobDir: string, filename: string): Promise<string> {
+export async function getJobFile(
+  jobDir: string,
+  filename: string
+): Promise<string> {
   const res = await fetch(`/api/jobs/${jobDir}/files/${filename}`);
   if (!res.ok) {
     const body = await res.json().catch(() => ({ detail: res.statusText }));

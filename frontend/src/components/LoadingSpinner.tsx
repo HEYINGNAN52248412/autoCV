@@ -10,10 +10,10 @@ export default function LoadingSpinner({ label }: { label: string }) {
   }, []);
 
   return (
-    <div className="flex items-center gap-3 text-gray-400">
+    <div className="flex items-center gap-3 text-gray-500">
       <Loader2 size={20} className="animate-spin" />
       <span>{label}</span>
-      <span className="text-sm text-gray-500">{elapsed}s</span>
+      <span className="text-sm text-gray-400">{elapsed}s</span>
     </div>
   );
 }

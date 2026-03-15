@@ -34,6 +34,9 @@ knowledge_base/*.pdf
 knowledge_base/*.tex
 knowledge_base/*.md
 
+# Usage tracking (personal data)
+usage_total.json
+
 # Frontend build output
 static/
 

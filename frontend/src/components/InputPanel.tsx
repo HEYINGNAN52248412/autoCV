@@ -1,6 +1,12 @@
 import { useState } from "react";
-import { ChevronDown, ChevronRight, Send, Sparkles } from "lucide-react";
-import type { Analysis } from "../api";
+import {
+  ChevronDown,
+  ChevronRight,
+  Send,
+  Sparkles,
+  XCircle,
+} from "lucide-react";
+import type { Analysis, Usage } from "../api";
 import LoadingSpinner from "./LoadingSpinner";
 import ScoreBadge from "./ScoreBadge";
 
@@ -8,8 +14,12 @@ interface Props {
   analysis: Analysis | null;
   isAnalyzing: boolean;
   isGenerating: boolean;
+  generatePhase: string;
+  analyzeUsage: Usage | null;
+  generateUsage: { total: Usage } | null;
   onAnalyze: (jdText: string, company: string) => void;
   onGenerate: (questions: string) => void;
+  onCancelGenerate: () => void;
 }
 
 const recStyles: Record<string, string> = {
@@ -18,44 +28,64 @@ const recStyles: Record<string, string> = {
   skip: "bg-red-600 text-white",
 };
 
+const phaseLabels: Record<string, string> = {
+  resume: "Generating resume...",
+  cover_letter: "Generating cover letter...",
+  qa: "Generating Q&A answers...",
+  starting: "Starting generation...",
+};
+
+function fmtTokens(n: number): string {
+  return n.toLocaleString();
+}
+
 export default function InputPanel({
   analysis,
   isAnalyzing,
   isGenerating,
+  generatePhase,
+  analyzeUsage,
+  generateUsage,
   onAnalyze,
   onGenerate,
+  onCancelGenerate,
 }: Props) {
   const [company, setCompany] = useState("");
   const [jdText, setJdText] = useState("");
   const [showQuestions, setShowQuestions] = useState(false);
   const [questions, setQuestions] = useState("");
 
-  const canAnalyze = company.trim() && jdText.trim() && !isAnalyzing && !isGenerating;
+  const canAnalyze =
+    company.trim() && jdText.trim() && !isAnalyzing && !isGenerating;
 
   return (
     <div className="flex flex-col gap-5 h-full">
       {/* Company name */}
       <div>
-        <label className="block text-sm font-medium text-gray-400 mb-1">Company Name</label>
+        <label className="block text-sm font-medium text-gray-500 mb-1">
+          Company Name
+        </label>
         <input
           type="text"
           value={company}
           onChange={(e) => setCompany(e.target.value)}
           placeholder="e.g. Google"
-          className="w-full px-3 py-2 rounded-lg bg-gray-800 border border-gray-700
-                     text-gray-100 placeholder-gray-500 focus:outline-none focus:border-blue-500"
+          className="w-full px-3 py-2 rounded-lg bg-white border border-gray-300
+                     text-gray-900 placeholder-gray-400 focus:outline-none focus:border-blue-500"
         />
       </div>
 
       {/* JD textarea */}
       <div className="flex-1 flex flex-col min-h-0">
-        <label className="block text-sm font-medium text-gray-400 mb-1">Job Description</label>
+        <label className="block text-sm font-medium text-gray-500 mb-1">
+          Job Description
+        </label>
         <textarea
           value={jdText}
           onChange={(e) => setJdText(e.target.value)}
           placeholder="Paste the job description here..."
-          className="flex-1 w-full px-3 py-2 rounded-lg bg-gray-800 border border-gray-700
-                     text-gray-100 placeholder-gray-500 resize-none focus:outline-none
+          className="flex-1 w-full px-3 py-2 rounded-lg bg-white border border-gray-300
+                     text-gray-900 placeholder-gray-400 resize-none focus:outline-none
                      focus:border-blue-500 min-h-[200px]"
         />
       </div>
@@ -65,7 +95,7 @@ export default function InputPanel({
         onClick={() => onAnalyze(jdText, company)}
         disabled={!canAnalyze}
         className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg
-                   bg-blue-600 hover:bg-blue-500 disabled:bg-gray-700 disabled:text-gray-500
+                   bg-blue-600 hover:bg-blue-500 disabled:bg-gray-200 disabled:text-gray-400
                    text-white font-medium transition-colors cursor-pointer disabled:cursor-not-allowed"
       >
         <Send size={16} />
@@ -74,13 +104,20 @@ export default function InputPanel({
 
       {isAnalyzing && <LoadingSpinner label="Analyzing JD..." />}
 
+      {/* Phase 1 usage */}
+      {analyzeUsage && !isAnalyzing && (
+        <p className="text-xs text-gray-400">
+          Phase 1: {fmtTokens(analyzeUsage.input_tokens + analyzeUsage.output_tokens)} tokens
+        </p>
+      )}
+
       {/* Analysis summary */}
       {analysis && (
-        <div className="space-y-4 border-t border-gray-700 pt-4">
+        <div className="space-y-4 border-t border-gray-200 pt-4">
           <div className="flex items-center justify-between">
             <ScoreBadge score={analysis.match_score} />
             <span
-              className={`px-3 py-1 rounded-full text-sm font-semibold uppercase ${recStyles[analysis.recommendation] || "bg-gray-600"}`}
+              className={`px-3 py-1 rounded-full text-sm font-semibold uppercase ${recStyles[analysis.recommendation] || "bg-gray-400"}`}
             >
               {analysis.recommendation}
             </span>
@@ -89,7 +126,10 @@ export default function InputPanel({
           {/* Strengths */}
           <div className="flex flex-wrap gap-1.5">
             {analysis.strengths.map((s, i) => (
-              <span key={i} className="px-2 py-0.5 text-xs rounded bg-green-900/60 text-green-300">
+              <span
+                key={i}
+                className="px-2 py-0.5 text-xs rounded bg-green-50 text-green-700"
+              >
                 {s}
               </span>
             ))}
@@ -98,7 +138,10 @@ export default function InputPanel({
           {/* Gaps */}
           <div className="flex flex-wrap gap-1.5">
             {analysis.gaps.map((g, i) => (
-              <span key={i} className="px-2 py-0.5 text-xs rounded bg-red-900/60 text-red-300">
+              <span
+                key={i}
+                className="px-2 py-0.5 text-xs rounded bg-red-50 text-red-700"
+              >
                 {g}
               </span>
             ))}
@@ -107,9 +150,13 @@ export default function InputPanel({
           {/* Optional questions */}
           <button
             onClick={() => setShowQuestions(!showQuestions)}
-            className="flex items-center gap-1 text-sm text-gray-400 hover:text-gray-300 cursor-pointer"
+            className="flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700 cursor-pointer"
           >
-            {showQuestions ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+            {showQuestions ? (
+              <ChevronDown size={14} />
+            ) : (
+              <ChevronRight size={14} />
+            )}
             Application Questions (optional)
           </button>
           {showQuestions && (
@@ -117,25 +164,49 @@ export default function InputPanel({
               value={questions}
               onChange={(e) => setQuestions(e.target.value)}
               placeholder="Paste application-specific questions here..."
-              className="w-full px-3 py-2 rounded-lg bg-gray-800 border border-gray-700
-                         text-gray-100 placeholder-gray-500 resize-none focus:outline-none
+              className="w-full px-3 py-2 rounded-lg bg-white border border-gray-300
+                         text-gray-900 placeholder-gray-400 resize-none focus:outline-none
                          focus:border-blue-500 h-24"
             />
           )}
 
-          {/* Generate button */}
-          <button
-            onClick={() => onGenerate(questions)}
-            disabled={isGenerating}
-            className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg
-                       bg-emerald-600 hover:bg-emerald-500 disabled:bg-gray-700
-                       disabled:text-gray-500 text-white font-medium transition-colors
-                       cursor-pointer disabled:cursor-not-allowed"
-          >
-            <Sparkles size={16} />
-            Generate Materials
-          </button>
-          {isGenerating && <LoadingSpinner label="Generating resume, cover letter & Q&A..." />}
+          {/* Generate / Cancel button */}
+          {isGenerating ? (
+            <button
+              onClick={onCancelGenerate}
+              className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg
+                         bg-red-600 hover:bg-red-500 text-white font-medium transition-colors
+                         cursor-pointer"
+            >
+              <XCircle size={16} />
+              Cancel
+            </button>
+          ) : (
+            <button
+              onClick={() => onGenerate(questions)}
+              disabled={isGenerating}
+              className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg
+                         bg-emerald-600 hover:bg-emerald-500 disabled:bg-gray-200
+                         disabled:text-gray-400 text-white font-medium transition-colors
+                         cursor-pointer disabled:cursor-not-allowed"
+            >
+              <Sparkles size={16} />
+              Generate Materials
+            </button>
+          )}
+
+          {isGenerating && (
+            <LoadingSpinner
+              label={phaseLabels[generatePhase] || "Generating..."}
+            />
+          )}
+
+          {/* Phase 2 usage */}
+          {generateUsage && !isGenerating && (
+            <p className="text-xs text-gray-400">
+              Phase 2: {fmtTokens(generateUsage.total.input_tokens + generateUsage.total.output_tokens)} tokens
+            </p>
+          )}
         </div>
       )}
     </div>

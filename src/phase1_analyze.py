@@ -88,6 +88,11 @@ def run_phase1(jd_text: str, knowledge_context: str, job_dir: str) -> dict:
         print(f"  ERROR: Anthropic API call failed: {e}")
         return {}
 
+    usage = {
+        "input_tokens": response.usage.input_tokens,
+        "output_tokens": response.usage.output_tokens,
+    }
+
     raw_text = response.content[0].text
     json_text = _strip_json_fences(raw_text)
 
@@ -100,7 +105,7 @@ def run_phase1(jd_text: str, knowledge_context: str, job_dir: str) -> dict:
         job_path = Path(job_dir)
         job_path.mkdir(parents=True, exist_ok=True)
         (job_path / "phase1_raw_response.txt").write_text(raw_text, encoding="utf-8")
-        return {}
+        return {"usage": usage}
 
     # Save outputs
     job_path = Path(job_dir)
@@ -113,4 +118,5 @@ def run_phase1(jd_text: str, knowledge_context: str, job_dir: str) -> dict:
     markdown_report = _render_markdown(analysis)
     (job_path / "phase1_analysis.md").write_text(markdown_report, encoding="utf-8")
 
+    analysis["usage"] = usage
     return analysis

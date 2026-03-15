@@ -1,6 +1,12 @@
 export default function ScoreBadge({ score }: { score: number }) {
-  const color = score >= 7 ? "bg-green-500" : score >= 4 ? "bg-yellow-500" : "bg-red-500";
-  const trackColor = score >= 7 ? "bg-green-900" : score >= 4 ? "bg-yellow-900" : "bg-red-900";
+  const color =
+    score >= 7 ? "bg-green-500" : score >= 4 ? "bg-yellow-500" : "bg-red-500";
+  const trackColor =
+    score >= 7
+      ? "bg-green-200"
+      : score >= 4
+        ? "bg-yellow-200"
+        : "bg-red-200";
 
   return (
     <div className="flex items-center gap-3">
@@ -10,7 +16,7 @@ export default function ScoreBadge({ score }: { score: number }) {
           style={{ width: `${score * 10}%` }}
         />
       </div>
-      <span className="text-lg font-semibold text-gray-200">{score}/10</span>
+      <span className="text-lg font-semibold text-gray-800">{score}/10</span>
     </div>
   );
 }

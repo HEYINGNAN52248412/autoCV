@@ -96,7 +96,7 @@ def _run_phase2(jd_text: str, knowledge: str, analysis: dict, company: str, job_
 
     # 1. Resume
     with console.status("[bold cyan]Generating tailored resume..."):
-        pdf_path = generate_resume(jd_text, knowledge, analysis, job_dir)
+        pdf_path, _ = generate_resume(jd_text, knowledge, analysis, job_dir)
     if pdf_path:
         console.print(f"  [green]Resume PDF:[/green] {pdf_path}")
     else:
@@ -104,13 +104,13 @@ def _run_phase2(jd_text: str, knowledge: str, analysis: dict, company: str, job_
 
     # 2. Cover letter
     with console.status("[bold cyan]Generating cover letter..."):
-        cl_path = generate_cover_letter(jd_text, knowledge, analysis, company, job_dir)
+        cl_path, _ = generate_cover_letter(jd_text, knowledge, analysis, company, job_dir)
     if cl_path:
         console.print(f"  [green]Cover letter:[/green] {cl_path}")
 
     # 3. Q&A
     with console.status("[bold cyan]Generating Q&A answers..."):
-        qa_path = generate_qa(jd_text, knowledge, analysis, questions, job_dir)
+        qa_path, _ = generate_qa(jd_text, knowledge, analysis, questions, job_dir)
     if qa_path:
         console.print(f"  [green]Q&A answers:[/green] {qa_path}")
 
