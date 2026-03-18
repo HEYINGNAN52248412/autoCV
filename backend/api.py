@@ -10,25 +10,26 @@ from fastapi.responses import FileResponse, PlainTextResponse, JSONResponse
 from pydantic import BaseModel
 
 from src.config import KNOWLEDGE_BASE_PATH, JOBS_PATH
-from src.knowledge import load_knowledge_base
+from src.knowledge import load_knowledge_base, list_templates
 from src.phase1_analyze import run_phase1
 from src.phase2_generate import generate_resume, generate_cover_letter, generate_qa, answer_questions
-from backend.usage_tracker import record as record_usage, get_summary as get_usage_summary
+from backend.usage_tracker import record as record_usage, get_detailed_summary as get_usage_summary
 
 router = APIRouter(prefix="/api")
 
 # ---------------------------------------------------------------------------
 # Module-level knowledge base cache
 # ---------------------------------------------------------------------------
-_knowledge_cache: str | None = None
+_knowledge_cache: dict[str, str] = {}
 
 
-def _get_knowledge() -> str:
-    """Return the cached knowledge base, loading it on first call."""
-    global _knowledge_cache
-    if _knowledge_cache is None:
-        _knowledge_cache = load_knowledge_base(str(KNOWLEDGE_BASE_PATH))
-    return _knowledge_cache
+def _get_knowledge(template_file: str = "resume.tex") -> str:
+    """Return the cached knowledge base for a given template, loading on first call."""
+    if template_file not in _knowledge_cache:
+        _knowledge_cache[template_file] = load_knowledge_base(
+            str(KNOWLEDGE_BASE_PATH), template_file
+        )
+    return _knowledge_cache[template_file]
 
 
 # ---------------------------------------------------------------------------
@@ -68,6 +69,10 @@ class AnalyzeRequest(BaseModel):
 class GenerateRequest(BaseModel):
     job_dir: str
     questions: str = ""
+    template: str = "resume.tex"
+    generate_resume: bool = True
+    generate_cover: bool = True
+    generate_qa: bool = True
 
 
 class QaRequest(BaseModel):
@@ -114,8 +119,13 @@ def _save_job_usage(job_dir: Path, phase: str, usage: dict) -> None:
 def health():
     return {
         "status": "ok",
-        "knowledge_base_loaded": _knowledge_cache is not None,
+        "knowledge_base_loaded": len(_knowledge_cache) > 0,
     }
+
+
+@router.get("/templates")
+def templates():
+    return list_templates(str(KNOWLEDGE_BASE_PATH))
 
 
 @router.post("/analyze")
@@ -177,12 +187,24 @@ def generate(req: GenerateRequest):
     jd_text = jd_file.read_text(encoding="utf-8")
 
     company = dir_name.rsplit("_", 1)[0].replace("_", " ").title()
-    knowledge = _get_knowledge()
+    knowledge = _get_knowledge(req.template)
     questions = req.questions
+
+    # Determine which steps to run
+    steps = []
+    if req.generate_resume:
+        steps.append("resume")
+    if req.generate_cover:
+        steps.append("cover_letter")
+    if req.generate_qa:
+        steps.append("qa")
+
+    if not steps:
+        raise HTTPException(status_code=400, detail="At least one generator must be selected")
 
     # Reset cancel state
     with _generate_lock:
-        _generate_state["phase"] = "resume"
+        _generate_state["phase"] = steps[0]
         _generate_state["completed"] = []
         _generate_state["cancel_requested"] = False
 
@@ -190,7 +212,7 @@ def generate(req: GenerateRequest):
     result = {
         "status": "complete",
         "completed": [],
-        "resume_tex": str(job_dir / "resume_tailored.tex"),
+        "resume_tex": "",
         "resume_pdf": None,
         "cover_letter": None,
         "qa_answers": None,
@@ -198,52 +220,55 @@ def generate(req: GenerateRequest):
     }
 
     # Step 1: Resume
-    pdf_path, resume_usage = generate_resume(jd_text, knowledge, analysis, str(job_dir))
-    result["resume_pdf"] = pdf_path
-    all_usage["resume"] = resume_usage
-    _mark_completed("resume")
-    if resume_usage:
-        record_usage(dir_name, "phase2_resume", resume_usage.get("input_tokens", 0), resume_usage.get("output_tokens", 0))
-        _save_job_usage(job_dir, "phase2_resume", resume_usage)
+    if req.generate_resume:
+        _set_phase("resume")
+        pdf_path, resume_usage = generate_resume(jd_text, knowledge, analysis, str(job_dir))
+        result["resume_tex"] = str(job_dir / "resume_tailored.tex")
+        result["resume_pdf"] = pdf_path
+        all_usage["resume"] = resume_usage
+        _mark_completed("resume")
+        if resume_usage:
+            record_usage(dir_name, "phase2_resume", resume_usage.get("input_tokens", 0), resume_usage.get("output_tokens", 0))
+            _save_job_usage(job_dir, "phase2_resume", resume_usage)
 
-    # Check cancel
-    if _is_cancelled():
-        _set_phase("cancelled")
-        result["status"] = "cancelled"
-        result["completed"] = list(_generate_state["completed"])
-        result["usage"] = _build_usage_summary(all_usage)
-        return result
+        if _is_cancelled():
+            _set_phase("cancelled")
+            result["status"] = "cancelled"
+            result["completed"] = list(_generate_state["completed"])
+            result["usage"] = _build_usage_summary(all_usage)
+            return result
 
     # Step 2: Cover letter
-    _set_phase("cover_letter")
-    cl_path, cover_usage = generate_cover_letter(jd_text, knowledge, analysis, company, str(job_dir))
-    result["cover_letter"] = cl_path or None
-    all_usage["cover_letter"] = cover_usage
-    _mark_completed("cover_letter")
-    if cover_usage:
-        record_usage(dir_name, "phase2_cover", cover_usage.get("input_tokens", 0), cover_usage.get("output_tokens", 0))
-        _save_job_usage(job_dir, "phase2_cover", cover_usage)
+    if req.generate_cover:
+        _set_phase("cover_letter")
+        cl_path, cover_usage = generate_cover_letter(jd_text, knowledge, analysis, company, str(job_dir))
+        result["cover_letter"] = cl_path or None
+        all_usage["cover_letter"] = cover_usage
+        _mark_completed("cover_letter")
+        if cover_usage:
+            record_usage(dir_name, "phase2_cover", cover_usage.get("input_tokens", 0), cover_usage.get("output_tokens", 0))
+            _save_job_usage(job_dir, "phase2_cover", cover_usage)
 
-    # Check cancel
-    if _is_cancelled():
-        _set_phase("cancelled")
-        result["status"] = "cancelled"
-        result["completed"] = list(_generate_state["completed"])
-        result["usage"] = _build_usage_summary(all_usage)
-        return result
+        if _is_cancelled():
+            _set_phase("cancelled")
+            result["status"] = "cancelled"
+            result["completed"] = list(_generate_state["completed"])
+            result["usage"] = _build_usage_summary(all_usage)
+            return result
 
     # Step 3: Q&A
-    _set_phase("qa")
-    qa_path, qa_usage = generate_qa(jd_text, knowledge, analysis, questions, str(job_dir))
-    result["qa_answers"] = qa_path or None
-    all_usage["qa"] = qa_usage
-    _mark_completed("qa")
-    if qa_usage:
-        record_usage(dir_name, "phase2_qa", qa_usage.get("input_tokens", 0), qa_usage.get("output_tokens", 0))
-        _save_job_usage(job_dir, "phase2_qa", qa_usage)
+    if req.generate_qa:
+        _set_phase("qa")
+        qa_path, qa_usage = generate_qa(jd_text, knowledge, analysis, questions, str(job_dir))
+        result["qa_answers"] = qa_path or None
+        all_usage["qa"] = qa_usage
+        _mark_completed("qa")
+        if qa_usage:
+            record_usage(dir_name, "phase2_qa", qa_usage.get("input_tokens", 0), qa_usage.get("output_tokens", 0))
+            _save_job_usage(job_dir, "phase2_qa", qa_usage)
 
     _set_phase("idle")
-    result["completed"] = ["resume", "cover_letter", "qa"]
+    result["completed"] = list(_generate_state["completed"])
     result["usage"] = _build_usage_summary(all_usage)
     return result
 

@@ -74,17 +74,40 @@ export interface GenerateStatus {
   completed: string[];
 }
 
+export interface Template {
+  filename: string;
+  label: string;
+}
+
+export interface PhaseUsage {
+  input_tokens: number;
+  output_tokens: number;
+  timestamp: string;
+}
+
+export interface JobUsage {
+  job_dir: string;
+  company: string;
+  date: string;
+  phases: Record<string, PhaseUsage | PhaseUsage[]>;
+  total_tokens: number;
+  estimated_cost_usd: number;
+}
+
 export interface UsageSummary {
   total_input_tokens: number;
   total_output_tokens: number;
   total_calls: number;
-  history: {
-    timestamp: string;
-    job: string;
-    phase: string;
-    input_tokens: number;
-    output_tokens: number;
-  }[];
+  estimated_cost_usd: number;
+  per_job: JobUsage[];
+}
+
+export interface GenerateOptions {
+  questions?: string;
+  template?: string;
+  generate_resume?: boolean;
+  generate_cover?: boolean;
+  generate_qa?: boolean;
 }
 
 async function request<T>(url: string, options?: RequestInit): Promise<T> {
@@ -108,11 +131,22 @@ export function analyzeJD(jdText: string, companyName: string) {
   });
 }
 
-export function generateMaterials(jobDir: string, questions = "") {
+export function getTemplates() {
+  return request<Template[]>("/api/templates");
+}
+
+export function generateMaterials(jobDir: string, options: GenerateOptions = {}) {
   return request<GenerateResponse>("/api/generate", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ job_dir: jobDir, questions }),
+    body: JSON.stringify({
+      job_dir: jobDir,
+      questions: options.questions ?? "",
+      template: options.template ?? "resume.tex",
+      generate_resume: options.generate_resume ?? true,
+      generate_cover: options.generate_cover ?? true,
+      generate_qa: options.generate_qa ?? true,
+    }),
   });
 }
 

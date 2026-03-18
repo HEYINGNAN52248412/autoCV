@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   ChevronDown,
   ChevronRight,
@@ -6,7 +6,8 @@ import {
   Sparkles,
   XCircle,
 } from "lucide-react";
-import type { Analysis, Usage } from "../api";
+import type { Analysis, GenerateOptions, Template, Usage } from "../api";
+import { getTemplates } from "../api";
 import LoadingSpinner from "./LoadingSpinner";
 import ScoreBadge from "./ScoreBadge";
 
@@ -18,7 +19,7 @@ interface Props {
   analyzeUsage: Usage | null;
   generateUsage: { total: Usage } | null;
   onAnalyze: (jdText: string, company: string) => void;
-  onGenerate: (questions: string) => void;
+  onGenerate: (options: GenerateOptions) => void;
   onCancelGenerate: () => void;
 }
 
@@ -54,6 +55,22 @@ export default function InputPanel({
   const [jdText, setJdText] = useState("");
   const [showQuestions, setShowQuestions] = useState(false);
   const [questions, setQuestions] = useState("");
+  const [templates, setTemplates] = useState<Template[]>([]);
+  const [selectedTemplate, setSelectedTemplate] = useState("resume.tex");
+  const [genResume, setGenResume] = useState(true);
+  const [genCover, setGenCover] = useState(false);
+  const [genQa, setGenQa] = useState(false);
+
+  const hasQuestions = questions.trim().length > 0;
+
+  useEffect(() => {
+    getTemplates().then(setTemplates).catch(() => {});
+  }, []);
+
+  // Auto-uncheck QA when questions are cleared
+  useEffect(() => {
+    if (!hasQuestions) setGenQa(false);
+  }, [hasQuestions]);
 
   const canAnalyze =
     company.trim() && jdText.trim() && !isAnalyzing && !isGenerating;
@@ -170,6 +187,65 @@ export default function InputPanel({
             />
           )}
 
+          {/* Template selector (only if multiple templates exist) */}
+          {templates.length > 1 && (
+            <div>
+              <label className="block text-sm font-medium text-gray-500 mb-1">
+                Resume Template
+              </label>
+              <select
+                value={selectedTemplate}
+                onChange={(e) => setSelectedTemplate(e.target.value)}
+                className="w-full px-3 py-2 rounded-lg bg-white border border-gray-300
+                           text-gray-900 focus:outline-none focus:border-blue-500"
+              >
+                {templates.map((t) => (
+                  <option key={t.filename} value={t.filename}>
+                    {t.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+
+          {/* Generation checkboxes */}
+          <div className="space-y-2">
+            <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={genResume}
+                onChange={(e) => setGenResume(e.target.checked)}
+                className="rounded"
+              />
+              Resume
+            </label>
+            <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={genCover}
+                onChange={(e) => setGenCover(e.target.checked)}
+                className="rounded"
+              />
+              Cover Letter
+            </label>
+            <label
+              className={`flex items-center gap-2 text-sm ${
+                hasQuestions
+                  ? "text-gray-700 cursor-pointer"
+                  : "text-gray-400 cursor-not-allowed"
+              }`}
+            >
+              <input
+                type="checkbox"
+                checked={genQa}
+                onChange={(e) => setGenQa(e.target.checked)}
+                disabled={!hasQuestions}
+                className="rounded"
+              />
+              Application Questions
+            </label>
+          </div>
+
           {/* Generate / Cancel button */}
           {isGenerating ? (
             <button
@@ -183,15 +259,23 @@ export default function InputPanel({
             </button>
           ) : (
             <button
-              onClick={() => onGenerate(questions)}
-              disabled={isGenerating}
+              onClick={() =>
+                onGenerate({
+                  questions,
+                  template: selectedTemplate,
+                  generate_resume: genResume,
+                  generate_cover: genCover,
+                  generate_qa: genQa,
+                })
+              }
+              disabled={isGenerating || (!genResume && !genCover && !genQa)}
               className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg
                          bg-emerald-600 hover:bg-emerald-500 disabled:bg-gray-200
                          disabled:text-gray-400 text-white font-medium transition-colors
                          cursor-pointer disabled:cursor-not-allowed"
             >
               <Sparkles size={16} />
-              Generate Materials
+              Generate Selected
             </button>
           )}
 

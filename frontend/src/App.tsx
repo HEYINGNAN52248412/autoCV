@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback, useRef } from "react";
 import { History, AlertCircle } from "lucide-react";
-import type { Analysis, GenerateResponse, Usage } from "./api";
+import type { Analysis, GenerateOptions, GenerateResponse, Usage } from "./api";
 import {
   checkHealth,
   analyzeJD,
@@ -74,10 +74,10 @@ export default function App() {
   );
 
   const handleGenerate = useCallback(
-    async (questions: string) => {
+    async (options: GenerateOptions) => {
       if (!jobDir) return;
       setIsGenerating(true);
-      setGeneratePhase("resume");
+      setGeneratePhase("starting");
       setError(null);
       setGenerateUsage(null);
 
@@ -92,7 +92,7 @@ export default function App() {
       }, 2000);
 
       try {
-        const res = await generateMaterials(jobDir, questions);
+        const res = await generateMaterials(jobDir, options);
         setPhase2(res);
         if (res.usage?.total) {
           setGenerateUsage({ total: res.usage.total });
